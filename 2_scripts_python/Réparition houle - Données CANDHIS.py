@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Tue Jun  2 11:34:47 2026
+
+@author: l.picart
+"""
+# -*- coding: utf-8 -*-
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -11,8 +17,8 @@ from matplotlib.gridspec import GridSpec
 dossier_brut = r"C:\Liam\Python\Données candhis\Données brutes"
 
 # selection des annees d'analyse
-annees_voulues = [2024, 2025]  
-#annees_voulues = [2014, 2015] 
+#annees_voulues = [2024, 2025]  
+annees_voulues = [2014, 2015] 
 
 all_dfs = []
 
