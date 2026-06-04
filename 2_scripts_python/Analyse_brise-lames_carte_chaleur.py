@@ -22,7 +22,7 @@ surface_maille = 99.878
 
 PATH_EXCEL = r"C:\Liam\QGIS\PEGASE_Projet_Liam\Comparaison\Brise-lames\Excel_maillage_cube\VARIATIONS_ELEVATION_MAILLAGE-MATRICE_COMPLETE_Brise-lames.csv"
 
-# codes couleurs de la zone 1 a 5
+# codes couleurs de la zone 1 a 6
 COULEURS_ZONES_LISTE = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9465bd', '#0ad4fc']
 
 def extract_centroid(wkt):
@@ -77,16 +77,34 @@ if os.path.exists(PATH_EXCEL):
 
     df[['X', 'Y']] = df['WKT'].apply(lambda x: pd.Series(extract_centroid(x)))
 
-    # boucle de calcul volumetrique zone par zone
+    # boucle de calcul volumetrique et de fiabilite zone par zone
     zones_stats = []
     for nom_zone, data_zone in df.groupby('Num'):
         data_valid = data_zone.dropna(subset=[col_choisie])
+        v = data_valid[col_choisie]
         surf_z = len(data_valid) * surface_maille
-        gains = (data_valid[data_valid[col_choisie] >= SEUIL_DETECTION][col_choisie] * surface_maille).sum()
-        pertes = (data_valid[data_valid[col_choisie] <= -SEUIL_DETECTION][col_choisie] * surface_maille).sum()
+        
+        gains = (v[v >= SEUIL_DETECTION] * surface_maille).sum()
+        pertes = (v[v <= -SEUIL_DETECTION] * surface_maille).sum()
         net = gains + pertes
         dz = (net / surf_z) * 100 if surf_z > 0 else 0
-        zones_stats.append({'zone': int(nom_zone), 'surface': surf_z, 'gains': gains, 'pertes': pertes, 'net': net, 'dz': dz})
+        
+        # Calcul de la fiabilite (Signal / Bruit)
+        v_brasse = (v.abs() * surface_maille).sum()
+        v_incert = surf_z * SEUIL_DETECTION
+        fiab = (1 - (v_incert / v_brasse)) * 100 if v_brasse > v_incert else 0
+        
+        zones_stats.append({
+            'zone': int(nom_zone), 
+            'surface': surf_z, 
+            'gains': gains, 
+            'pertes': pertes, 
+            'net': net, 
+            'dz': dz,
+            'v_incert': v_incert,
+            'v_brasse': v_brasse,
+            'fiab': fiab
+        })
 
 #%% generation des figures cartographiques
     fig_maps, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 12), facecolor='white')
@@ -209,6 +227,61 @@ if os.path.exists(PATH_EXCEL):
             cell.get_text().set_weight('bold')
 
     ax3.set_title(f"Bilans sédimentaires - {periode_label}", fontweight="bold", fontsize=16, pad=0)
+
+#%% generation du tableau des fiabilites (Signal/Bruit)
+    fig_fiab, ax4 = plt.subplots(figsize=(12, 6), facecolor='white')
+    ax4.axis('off')
+
+    columns_fiab = ['ZONE', 'INCERT. (m³)', 'BRASSÉ (m³)', 'FIABILITÉ']
+    data_table_fiab = []
+    cell_colors_fiab = []
+
+    # Calcul des totaux généraux pour la fiabilité
+    total_incert = sum(s['v_incert'] for s in zones_stats)
+    total_brasse = sum(s['v_brasse'] for s in zones_stats)
+    total_fiab = (1 - (total_incert / total_brasse)) * 100 if total_brasse > total_incert else 0
+
+    for s in zones_stats:
+        row_fiab = [
+            f"Zone {s['zone']}",
+            f"{s['v_incert']:.1f}",
+            f"{s['v_brasse']:.1f}",
+            f"{s['fiab']:.2f} %"
+        ]
+        data_table_fiab.append(row_fiab)
+        
+        row_colors_fiab = [color_map_zones[s['zone']], 'white', 'white', 'white']
+        cell_colors_fiab.append(row_colors_fiab)
+
+    # Ajout de la ligne TOTAL général
+    data_table_fiab.append([
+        'TOTAL', 
+        f"{total_incert:.1f}", 
+        f"{total_brasse:.1f}", 
+        f"{total_fiab:.2f} %"
+    ])
+    cell_colors_fiab.append(['#d3d3d3', '#d3d3d3', '#d3d3d3', '#d3d3d3'])
+
+    table_fiab = ax4.table(cellText=data_table_fiab, colLabels=columns_fiab, cellColours=cell_colors_fiab, loc='center', cellLoc='center')
+    
+    table_fiab.auto_set_font_size(False)
+    table_fiab.set_fontsize(15) 
+    table_fiab.scale(1.2, 2.5)
+
+    # Formatage graphique identique au premier tableau
+    for (row, col), cell in table_fiab.get_celld().items():
+        if row == 0:
+            cell.set_facecolor('#444444')
+            cell.get_text().set_color('white')
+            cell.get_text().set_weight('bold')
+        elif row > 0 and col == 0 and row <= len(zones_stats):
+            cell.get_text().set_color('white')
+            cell.get_text().set_weight('bold')
+        elif row > 0 and col == 3:
+            cell.get_text().set_weight('bold')
+
+    ax4.set_title(f"Indicateurs de fiabilité du modèle (Signal/Bruit) - {periode_label}", fontweight="bold", fontsize=16, pad=0)
+
     plt.show()
 
 else:
