@@ -9,4 +9,4 @@ Ils gèrent toute la partie scientifique et visuelle :
 * Ils création des planches de gaussiennes et des boxplots pour observer la dispersion.
 * Ils analyse et croisement des états de mer (hauteur et direction) issus des données candhis.
 
-**Attention** :   Ces scripts ne peuvent pas fonctionner seuls. Ils se basent entièrement sur les fichiers csv extraits et structurés par les scripts du dossier **1_scripts_pyqgis**.
+**Attention** :   ces scripts ne peuvent pas fonctionner seuls. Ils se basent entièrement sur les fichiers csv extraits et structurés par les scripts du dossier **1_scripts_pyqgis**.
